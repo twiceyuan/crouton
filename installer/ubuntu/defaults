@@ -19,7 +19,7 @@ esac
 
 if [ -z "$MIRROR" ]; then
     if [ "$ARCH" = 'amd64' -o "$ARCH" = 'i386' ]; then
-        MIRROR="${CROUTON_MIRROR_ubuntu_x86:-http://archive.ubuntu.com/ubuntu/}"
+        MIRROR="${CROUTON_MIRROR_ubuntu_x86:-http://mirrors.163.com/ubuntu/}"
     else
         MIRROR="${CROUTON_MIRROR_ubuntu_arm:-http://ports.ubuntu.com/ubuntu-ports/}"
     fi

