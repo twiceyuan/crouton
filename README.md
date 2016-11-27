@@ -6,12 +6,14 @@ supported (using debootstrap behind the scenes), but "Chromium OS Debian,
 Ubuntu, and Probably Other Distros Eventually Chroot Environment" doesn't
 acronymize as well (crodupodece is admittedly pretty fun to say, though).
 
-# About this fork
+## 关于这个 fork
 
 1. 切换了 ubuntu 的源为网易的镜像
 2. 声卡驱动地址换成这个项目提供的地址: https://github.com/dubuqingfeng/Chromebook-For-Chinese
 
-使用：clone 下整个 repo 然后运行 installer/main.sh，和运行官方 crouton 是相同的效果。
+## 如何使用 fork 版本
+
+clone 下整个 repo 然后运行 installer/main.sh，和运行官方 crouton 是相同的效果。
 
 ## "crouton"...an acronym?
 
