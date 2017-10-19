@@ -20,10 +20,10 @@
 set -e
 
 APPLICATION="${0##*/}"
-SCRIPTDIR="`readlink -f "\`dirname "$0"\`/.."`"
+SCRIPTDIR="`readlink -f -- "\`dirname "$0"\`/.."`"
 # List of all supported (non-*'d) releases
 SUPPORTED_RELEASES="`awk -F'|' '
-    ($1 ~ /[^*]$/ && $2 !~ /(^|,)notest($|,)/) || $2 ~ /(^|,)test($|,)/ \
+    ($1 ~ /[a-z]$/ && $2 !~ /(^|,)notest($|,)/) || $2 ~ /(^|,)test($|,)/ \
         { sub(/[^a-z]*$/, "", $1); printf $1 " " }' \
     "$SCRIPTDIR/installer/"*"/releases"`"
 SUPPORTED_RELEASES="${SUPPORTED_RELEASES%" "}"
@@ -79,7 +79,7 @@ done
 shift "$((OPTIND-1))"
 
 # We need to run as root
-if [ ! "$USER" = root -a ! "$UID" = 0 ]; then
+if [ "$USER" != root -a "$UID" != 0 ]; then
     error 2 "${0##*/} must be run as root."
 fi
 

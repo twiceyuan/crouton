@@ -68,9 +68,15 @@ if [ "${ARCH#arm}" = "$ARCH" ]; then
 fi
 
 # Catalog relevant and irrelevant video drivers
-# Debian sid has modesetting built into xserver-xorg-core
 fbdev="xserver-xorg-video-fbdev$backport"
-modesetting="xserver-xorg-video-modesetting$backport,debian~sid+ubuntu~vivid="
+
+if release -lt sid -lt kali-rolling -lt vivid; then
+    modesetting="xserver-xorg-video-modesetting$backport"
+else
+    # modesetting is built into xserver-xorg-core
+    modesetting=''
+fi
+
 installvideodrivers=''
 removevideodrivers=''
 if [ -n "$freon" ]; then
@@ -91,7 +97,7 @@ fi
 
 # On Freon, we need crazy xorg hacks
 if [ -n "$freon" ]; then
-    compile freon '-ldl' so
+    compile freon '-ldl -ldrm -I/usr/include/libdrm' so libdrm-dev
 fi
 
 # Pin precise's version of mesa if necessary
@@ -175,6 +181,13 @@ if [ -n "$backport" ]; then
         "xserver-xorg-input-synaptics$backport" $installvideodrivers
 fi
 
+if release -lt stretch -lt kali-rolling -lt yakkety; then
+    vmmouse='xserver-xorg-input-vmmouse'
+else
+    # xserver-xorg-input-vmmouse is obsolete
+    vmmouse=''
+fi
+
 # Install xorg, no video drivers
 if [ -z "$inteldriver" -a -n "$backport" ] && release -eq precise; then
     # xorg is packaged wrong on ARM and conflicts with xserver-xorg-lts-quantal
@@ -186,7 +199,7 @@ if [ -z "$inteldriver" -a -n "$backport" ] && release -eq precise; then
         xterm x11-common xinput
 else
     install xorg $installvideodrivers -- xserver-xorg-video-all$backport \
-        xserver-xorg-input-vmmouse
+        $vmmouse
 fi
 
 # Remove bad video drivers

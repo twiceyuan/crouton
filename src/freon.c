@@ -20,13 +20,19 @@
 #include <unistd.h>
 #include <linux/input.h>
 #include <linux/vt.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
 #define LOCK_FILE_DIR "/tmp/crouton-lock"
 #define DISPLAY_LOCK_FILE LOCK_FILE_DIR "/display"
-#define FREON_DBUS_METHOD_CALL(function) \
+#define LIBCROSSERVICE_METHOD_CALL(function) \
     system("host-dbus dbus-send --system --dest=org.chromium.LibCrosService " \
            "--type=method_call --print-reply /org/chromium/LibCrosService " \
            "org.chromium.LibCrosServiceInterface." #function)
+#define DISPLAYSERVICE_METHOD_CALL(function) \
+    system("host-dbus dbus-send --system --dest=org.chromium.DisplayService " \
+           "--type=method_call --print-reply /org/chromium/DisplayService " \
+           "org.chromium.DisplayServiceInterface." #function)
 
 #define TRACE(...) /* fprintf(stderr, __VA_ARGS__) */
 #define ERROR(...) fprintf(stderr, __VA_ARGS__)
@@ -76,7 +82,7 @@ static int set_display_lock(unsigned int pid) {
     }
     char buf[11];
     int len;
-    if ((len = snprintf(buf, sizeof(buf), "%d\n", pid)) < 0) {
+    if ((len = snprintf(buf, sizeof(buf), "%u\n", pid)) < 0) {
         ERROR("pid sprintf failed.\n");
         return -1;
     }
@@ -93,6 +99,44 @@ static int set_display_lock(unsigned int pid) {
         return ret;
     }
     return 0;
+}
+
+/* Prevents some glitch if Chromium OS keeps cursor enabled (#2878). */
+static void drm_disable_cursor()
+{
+    int i, fd;
+    drmModeRes* resources;
+
+    if (!orig_open) preload_init();
+
+    fd = orig_open("/dev/dri/card0", O_RDWR, 0);
+
+    TRACE("%s %d\n", __func__, fd);
+
+    if (fd < 0)
+        return;
+
+    resources = drmModeGetResources(fd);
+    if (!resources)
+        goto closefd;
+
+    TRACE("%s res=%p\n", __func__, resources);
+    for (i = 0; i < resources->count_crtcs; i++) {
+        drmModeCrtc* crtc;
+
+        crtc = drmModeGetCrtc(fd, resources->crtcs[i]);
+        TRACE("%s crtc %d %p\n", __func__, i, crtc);
+        if (crtc) {
+            drmModeSetCursor(fd, crtc->crtc_id,
+                             0, 0, 0);
+            drmModeFreeCrtc(crtc);
+        }
+    }
+
+    drmModeFreeResources(resources);
+
+closefd:
+    orig_close(fd);
 }
 
 int ioctl(int fd, unsigned long int request, ...) {
@@ -118,24 +162,31 @@ int ioctl(int fd, unsigned long int request, ...) {
             stat->v_active = 0;
         }
 
-        if ((request == VT_RELDISP && (long)data == 1) ||
-            (request == VT_ACTIVATE && (long)data == 0)) {
+        if ((request == VT_RELDISP && (uintptr_t)data == 1) ||
+            (request == VT_ACTIVATE && (uintptr_t)data == 0)) {
             if (lockfd != -1) {
                 TRACE("Telling Chromium OS to regain control\n");
-                ret = FREON_DBUS_METHOD_CALL(TakeDisplayOwnership);
+                ret = LIBCROSSERVICE_METHOD_CALL(TakeDisplayOwnership);
+                if (WEXITSTATUS(ret) == 1) {
+                    ret = DISPLAYSERVICE_METHOD_CALL(TakeOwnership);
+                }
                 if (set_display_lock(0) < 0) {
                     ERROR("Failed to release display lock\n");
                 }
             }
-        } else if ((request == VT_RELDISP && (long)data == 2) ||
-                   (request == VT_ACTIVATE && (long)data == 7)) {
+        } else if ((request == VT_RELDISP && (uintptr_t)data == 2) ||
+                   (request == VT_ACTIVATE && (uintptr_t)data == 7)) {
             if (set_display_lock(getpid()) == 0) {
                 TRACE("Telling Chromium OS to drop control\n");
-                ret = FREON_DBUS_METHOD_CALL(ReleaseDisplayOwnership);
+                ret = LIBCROSSERVICE_METHOD_CALL(ReleaseDisplayOwnership);
+                if (WEXITSTATUS(ret) == 1) {
+                    ret = DISPLAYSERVICE_METHOD_CALL(ReleaseOwnership);
+                }
             } else {
                 ERROR("Unable to claim display lock\n");
                 ret = -1;
             }
+            drm_disable_cursor();
         } else {
             ret = 0;
         }
